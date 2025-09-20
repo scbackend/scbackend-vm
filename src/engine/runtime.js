@@ -9,7 +9,6 @@ const BlocksRuntimeCache = require('./blocks-runtime-cache');
 const BlockType = require('../extension-support/block-type');
 const Profiler = require('./profiler');
 const Sequencer = require('./sequencer');
-const execute = require('./execute.js');
 const compilerExecute = require('../compiler/jsexecute');
 const ScratchBlocksConstants = require('./scratch-blocks-constants');
 const TargetType = require('../extension-support/target-type');
@@ -2263,8 +2262,7 @@ class Runtime extends EventEmitter {
                     compilerExecute.restoreGlobalState();
                 }
             } else {
-                execute(this.sequencer, thread);
-                thread.goToNextBlock();
+                throw new Error('must compilled');
             }
         });
         return newThreads;

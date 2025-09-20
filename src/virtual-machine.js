@@ -237,8 +237,7 @@ class VirtualMachine extends EventEmitter {
                     StackOpcode: require('./compiler/enums.js').StackOpcode,
                     InputOpcode: require('./compiler/enums.js').InputOpcode,
                     InputType: require('./compiler/enums.js').InputType,
-                    Thread: require('./engine/thread.js'),
-                    execute: require('./engine/execute.js')
+                    Thread: require('./engine/thread.js')
                 };
             },
 
@@ -252,8 +251,7 @@ class VirtualMachine extends EventEmitter {
                     IRGenerator: oldCompilerCompatibility.IRGeneratorStub,
                     ScriptTreeGenerator: oldCompilerCompatibility.ScriptTreeGeneratorStub,
                     JSGenerator: oldCompilerCompatibility.JSGeneratorStub,
-                    Thread: require('./engine/thread.js'),
-                    execute: require('./engine/execute.js')
+                    Thread: require('./engine/thread.js')
                 };
             }
         };
