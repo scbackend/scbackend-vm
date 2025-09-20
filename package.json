@@ -1,14 +1,9 @@
 {
-  "name": "scratch-vm",
+  "name": "scbackend-vm",
   "version": "2.1.46",
-  "description": "Virtual Machine for Scratch 3.0",
-  "author": "Massachusetts Institute of Technology",
+  "description": "Scbackend定制版vm",
+  "author": "XQYWorld",
   "license": "MPL-2.0",
-  "homepage": "https://github.com/scratchfoundation/scratch-vm#readme",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/scratchfoundation/scratch-vm.git"
-  },
   "main": "./src/index.js",
   "browser": "./src/index.js",
   "scripts": {
@@ -92,5 +87,5 @@
     "webpack-cli": "3.1.0",
     "webpack-dev-server": "3.11.2"
   },
-  "private": true
+  "private": false
 }

@@ -2170,7 +2170,7 @@ class Runtime extends EventEmitter {
         if (optTarget) {
             targets = [optTarget];
         }
-        for (let t = targets.length - 1; t >= 0; t--) {
+        for (let t = targets.length - 1; t >=  0; t--) {
             const target = targets[t];
             const scripts = BlocksRuntimeCache.getScripts(target.blocks, opcode);
             for (let j = 0; j < scripts.length; j++) {
@@ -2204,7 +2204,7 @@ class Runtime extends EventEmitter {
 
         // tw: By assuming that all new threads will not interfere with eachother, we can optimize the loops
         // inside the allScriptsByOpcodeDo callback below.
-        const startingThreadListLength = this.threads.length;
+        //const startingThreadListLength = this.threads.length;
 
         // Consider all scripts, looking for hats with opcode `requestedHatOpcode`.
         this.allScriptsByOpcodeDo(requestedHatOpcode, (script, target) => {
@@ -2224,30 +2224,7 @@ class Runtime extends EventEmitter {
                     return;
                 }
             }
-
-            if (hatMeta.restartExistingThreads) {
-                // If `restartExistingThreads` is true, we should stop
-                // any existing threads starting with the top block.
-                const existingThread = this.threadMap.get(Thread.getIdFromTargetAndBlock(target, topBlockId));
-                if (existingThread) {
-                    newThreads.push(this._restartThread(existingThread));
-                    return;
-                }
-            } else {
-                // If `restartExistingThreads` is false, we should
-                // give up if any threads with the top block are running.
-                for (let j = 0; j < startingThreadListLength; j++) {
-                    if (this.threads[j].target === target &&
-                        this.threads[j].topBlock === topBlockId &&
-                        // stack click threads and hat threads can coexist
-                        !this.threads[j].stackClick &&
-                        this.threads[j].status !== Thread.STATUS_DONE) {
-                        // Some thread is already running.
-                        return;
-                    }
-                }
-            }
-            // Start the thread with this top block.
+            // 总是启动新的 hat 线程
             newThreads.push(this._pushThread(topBlockId, target));
         }, optTarget);
         // For compatibility with Scratch 2, edge triggered hats need to be processed before
