@@ -85,18 +85,6 @@ class VirtualMachine extends EventEmitter {
         this._dragTarget = null;
 
         // Runtime emits are passed along as VM emits.
-        this.runtime.on(Runtime.SCRIPT_GLOW_ON, glowData => {
-            this.emit(Runtime.SCRIPT_GLOW_ON, glowData);
-        });
-        this.runtime.on(Runtime.SCRIPT_GLOW_OFF, glowData => {
-            this.emit(Runtime.SCRIPT_GLOW_OFF, glowData);
-        });
-        this.runtime.on(Runtime.BLOCK_GLOW_ON, glowData => {
-            this.emit(Runtime.BLOCK_GLOW_ON, glowData);
-        });
-        this.runtime.on(Runtime.BLOCK_GLOW_OFF, glowData => {
-            this.emit(Runtime.BLOCK_GLOW_OFF, glowData);
-        });
         this.runtime.on(Runtime.PROJECT_START, () => {
             this.emit(Runtime.PROJECT_START);
         });
@@ -117,12 +105,6 @@ class VirtualMachine extends EventEmitter {
         });
         this.runtime.on(Runtime.MONITORS_UPDATE, monitorList => {
             this.emit(Runtime.MONITORS_UPDATE, monitorList);
-        });
-        this.runtime.on(Runtime.BLOCK_DRAG_UPDATE, areBlocksOverGui => {
-            this.emit(Runtime.BLOCK_DRAG_UPDATE, areBlocksOverGui);
-        });
-        this.runtime.on(Runtime.BLOCK_DRAG_END, (blocks, topBlockId) => {
-            this.emit(Runtime.BLOCK_DRAG_END, blocks, topBlockId);
         });
         this.runtime.on(Runtime.EXTENSION_ADDED, categoryInfo => {
             this.emit(Runtime.EXTENSION_ADDED, categoryInfo);
