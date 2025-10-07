@@ -12,9 +12,20 @@ class ScbackendBasicExtension {
                 isEdgeActivated: false
             },
             {
+                opcode: 'disconnect',
+                blockType: 'event',
+                text: '当连接断开',
+                isEdgeActivated: false
+            },
+            {
                 opcode: 'lastconnect',
                 blockType: 'reporter',
                 text: '最后一次连接的id',
+            },
+            {
+                opcode: 'lastdisconnect',
+                blockType: 'reporter',
+                text: '最后一次断开的id',
             },
             {
                 opcode: 'message',
@@ -48,6 +59,21 @@ class ScbackendBasicExtension {
                 }
             },
             {
+                opcode: 'kick',
+                blockType: 'command',
+                text: '断开连接 [connectid] 附带信息 [reason]',
+                arguments: {
+                    connectid: {
+                        type: 'string',
+                        defaultValue: 'connectid',
+                    },
+                    reason: {
+                        type: 'string',
+                        defaultValue: 'reason',
+                    }
+                }
+            },
+            {
                 opcode: 'log',
                 blockType: 'command',
                 text: '打印 [message] 到控制台',
@@ -67,6 +93,13 @@ class ScbackendBasicExtension {
     }
 
     lastconnect(args, util) {
+        if (!this.runtime || !this.runtime.scbackend) {
+            return '';
+        }
+        return util.thread.getParam('sessionid') || '';
+    }
+
+    lastdisconnect(args, util) {
         if (!this.runtime || !this.runtime.scbackend) {
             return '';
         }
