@@ -10,19 +10,13 @@ const createTranslate = require('./tw-l10n');
 const translate = createTranslate(null);
 
 const loadScripts = url => {
-    if (isWorker) {
-        importScripts(url);
-    } else {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.onload = () => resolve();
-            script.onerror = () => {
-                reject(new Error(`Error in sandboxed script: ${url}. Check the console for more information.`));
-            };
-            script.src = url;
-            document.body.appendChild(script);
-        });
-    }
+    return new Promise((resolve, reject) => {
+        try {
+            import(url).then(resolve).catch(reject);
+        } catch (e) {
+            reject(new Error(`Error loading script in Node.js: ${url}. ${e.message}`));
+        }
+    });
 };
 
 class ExtensionWorker {
