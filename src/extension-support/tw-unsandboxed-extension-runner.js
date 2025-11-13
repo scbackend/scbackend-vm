@@ -4,6 +4,18 @@ const AsyncLimiter = require('../util/async-limiter');
 const createTranslate = require('./tw-l10n');
 const staticFetch = require('../util/tw-static-fetch');
 
+// Node.js specific additions
+const vmModule = require('vm');
+let fetchFn;
+try {
+	// node-fetch v2: require returns function; v3 in CJS might have .default
+	const nf = require('node-fetch');
+	fetchFn = nf && typeof nf === 'function' ? nf : (nf && nf.default) ? nf.default : null;
+} catch (e) {
+	// node-fetch not installed; leave fetchFn null and later throw if used
+	fetchFn = null;
+}
+
 /* eslint-disable require-await */
 
 /**
@@ -13,7 +25,9 @@ const staticFetch = require('../util/tw-static-fetch');
  */
 const parseURL = url => {
     try {
-        return new URL(url, location.href);
+        // 浏览器中使用 location.href 作为基准；在 Node 中使用当前工作目录的 file:// 作为基准
+        const base = `file://${process.cwd().replace(/\\/g, '/')}/`;
+        return new URL(url, base);
     } catch (e) {
         return null;
     }
@@ -57,7 +71,7 @@ const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {
         if (!parsed) {
             return false;
         }
-        // Always reject protocols that would allow code execution.
+        // 在 Node 环境中不允许打开浏览器窗口（也拒绝 javascript:）
         // eslint-disable-next-line no-script-url
         if (parsed.protocol === 'javascript:') {
             return false;
@@ -70,7 +84,6 @@ const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {
         if (!parsed) {
             return false;
         }
-        // Always reject protocols that would allow code execution.
         // eslint-disable-next-line no-script-url
         if (parsed.protocol === 'javascript:') {
             return false;
@@ -110,7 +123,8 @@ const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {
     };
 
     Scratch.fetch = async (url, options) => {
-        const actualURL = url instanceof Request ? url.url : url;
+        // url 可能是字符串或类似 Request 的对象
+        const actualURL = (typeof url === 'string') ? url : (url && (url.url || url.href)) || '';
 
         const staticFetchResult = staticFetch(url);
         if (staticFetchResult) {
@@ -120,36 +134,36 @@ const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {
         if (!await Scratch.canFetch(actualURL)) {
             throw new Error(`Permission to fetch ${actualURL} rejected.`);
         }
-        return fetch(url, options);
+
+        // 在 Node 中使用 node-fetch（若不可用则抛错）
+        if (!fetchFn) {
+            throw new Error('fetch is not available in this Node environment. Install node-fetch to enable remote fetch.');
+        }
+        return fetchFn(url, options);
     };
 
     Scratch.openWindow = async (url, features) => {
         if (!await Scratch.canOpenWindow(url)) {
             throw new Error(`Permission to open tab ${url} rejected.`);
         }
-        // Use noreferrer to prevent new tab from accessing `window.opener`
-        const baseFeatures = 'noreferrer';
-        features = features ? `${baseFeatures},${features}` : baseFeatures;
-        return window.open(url, '_blank', features);
+        // Node 环境不支持打开浏览器窗口
+        throw new Error('openWindow is not supported in Node.js environment.');
     };
 
     Scratch.redirect = async url => {
         if (!await Scratch.canRedirect(url)) {
             throw new Error(`Permission to redirect to ${url} rejected.`);
         }
-        location.href = url;
+        // Node 环境不支持直接重定向浏览器 location
+        throw new Error('redirect is not supported in Node.js environment.');
     };
 
     Scratch.download = async (url, name) => {
         if (!await Scratch.canDownload(url, name)) {
             throw new Error(`Permission to download ${name} rejected.`);
         }
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = name;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        // Node 环境不支持浏览器式下载：可以选择实现为写文件，但此处标为不支持以保留安全性
+        throw new Error('download is not supported in Node.js environment.');
     };
 
     Scratch.translate = createTranslate(vm);
@@ -178,14 +192,52 @@ const teardownUnsandboxedExtensionAPI = () => {
  * @returns {Promise<object[]>} Resolves with a list of extension objects if the extension was loaded successfully.
  */
 const loadUnsandboxedExtension = (extensionURL, vm) => new Promise((resolve, reject) => {
+    // setup resolves when extension registers via Scratch.extensions.register
     setupUnsandboxedExtensionAPI(vm).then(resolve);
 
-    const script = document.createElement('script');
-    script.onerror = () => {
-        reject(new Error(`Error in unsandboxed script ${extensionURL}. Check the console for more information.`));
-    };
-    script.src = extensionURL;
-    document.body.appendChild(script);
+    const parsed = parseURL(extensionURL);
+    if (!parsed) {
+        reject(new Error(`Invalid extension URL: ${extensionURL}`));
+        return;
+    }
+
+    // Local file (file:// or relative path) -> require
+    if (parsed.protocol === 'file:' || parsed.protocol === '') {
+        try {
+            let modulePath = parsed.protocol === 'file:' ? decodeURIComponent(parsed.pathname) : extensionURL;
+            // Windows: 去掉前导斜杠
+            if (process.platform === 'win32' && modulePath.startsWith('/')) {
+                modulePath = modulePath.slice(1);
+            }
+            // 使用 require 在同一进程/同一全局中加载（unsandboxed）
+            require(modulePath);
+        } catch (e) {
+            reject(new Error(`Error in unsandboxed script ${extensionURL}: ${e && e.message ? e.message : e}`));
+        }
+    } else if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        // 远程脚本：用 fetch 拉取并在当前上下文运行
+        if (!fetchFn) {
+            reject(new Error('fetch is not available in this Node environment. Install node-fetch to load remote extensions.'));
+            return;
+        }
+        fetchFn(extensionURL).then(res => {
+            if (!res || !res.ok) {
+                throw new Error(`Failed to fetch ${extensionURL}: ${res ? res.status : 'no response'}`);
+            }
+            return res.text();
+        }).then(code => {
+            try {
+                // 在当前上下文执行，以便脚本可以访问 global.Scratch 等全局变量
+                vmModule.runInThisContext(code, { filename: extensionURL });
+            } catch (e) {
+                reject(new Error(`Error executing unsandboxed script ${extensionURL}: ${e && e.message ? e.message : e}`));
+            }
+        }).catch(err => {
+            reject(new Error(`Error loading unsandboxed script ${extensionURL}: ${err && err.message ? err.message : err}`));
+        });
+    } else {
+        reject(new Error(`Unsupported protocol for ${extensionURL}`));
+    }
 }).then(objects => {
     teardownUnsandboxedExtensionAPI();
     return objects;
