@@ -35,7 +35,7 @@ class SecurityManager {
      */
     getSandboxMode (extensionURL) {
         // Default to worker for Scratch compatibility
-        return Promise.resolve('worker');
+        return Promise.resolve('unsandboxed');
     }
 
     /**
