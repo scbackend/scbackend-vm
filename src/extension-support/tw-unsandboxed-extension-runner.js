@@ -6,15 +6,6 @@ const staticFetch = require('../util/tw-static-fetch');
 
 // Node.js specific additions
 const vmModule = require('vm');
-let fetchFn;
-try {
-	// node-fetch v2: require returns function; v3 in CJS might have .default
-	const nf = require('node-fetch');
-	fetchFn = nf && typeof nf === 'function' ? nf : (nf && nf.default) ? nf.default : null;
-} catch (e) {
-	// node-fetch not installed; leave fetchFn null and later throw if used
-	fetchFn = null;
-}
 
 /* eslint-disable require-await */
 
@@ -134,12 +125,7 @@ const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {
         if (!await Scratch.canFetch(actualURL)) {
             throw new Error(`Permission to fetch ${actualURL} rejected.`);
         }
-
-        // 在 Node 中使用 node-fetch（若不可用则抛错）
-        if (!fetchFn) {
-            throw new Error('fetch is not available in this Node environment. Install node-fetch to enable remote fetch.');
-        }
-        return fetchFn(url, options);
+        return fetch(url, options);
     };
 
     Scratch.openWindow = async (url, features) => {
