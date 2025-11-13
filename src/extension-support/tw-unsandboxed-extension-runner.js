@@ -216,11 +216,7 @@ const loadUnsandboxedExtension = (extensionURL, vm) => new Promise((resolve, rej
         }
     } else if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
         // 远程脚本：用 fetch 拉取并在当前上下文运行
-        if (!fetchFn) {
-            reject(new Error('fetch is not available in this Node environment. Install node-fetch to load remote extensions.'));
-            return;
-        }
-        fetchFn(extensionURL).then(res => {
+        fetch(extensionURL).then(res => {
             if (!res || !res.ok) {
                 throw new Error(`Failed to fetch ${extensionURL}: ${res ? res.status : 'no response'}`);
             }
