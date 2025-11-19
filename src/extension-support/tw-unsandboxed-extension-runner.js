@@ -217,6 +217,23 @@ const loadUnsandboxedExtension = (extensionURL, vm) => new Promise((resolve, rej
         }).catch(err => {
             reject(new Error(`Error loading unsandboxed script ${extensionURL}: ${err && err.message ? err.message : err}`));
         });
+    } else if (parsed.protocol === 'blob:' || parsed.protocol === 'data:') {
+        // 浏览器式脚本：用 fetch 拉取并在当前上下文运行
+        fetch(extensionURL).then(res => {
+            if (!res || !res.ok) {
+                throw new Error(`Failed to fetch ${extensionURL}: ${res ? res.status : 'no response'}`);
+            }
+            return res.text();
+        }).then(code => {
+            try {
+                // 在当前上下文执行，以便脚本可以访问 global.Scratch 等全局变量
+                vmModule.runInThisContext(code, { filename: extensionURL });
+            } catch (e) {
+                reject(new Error(`Error executing unsandboxed script ${extensionURL}: ${e && e.message ? e.message : e}`));
+            }
+        }).catch(err => {
+            reject(new Error(`Error loading unsandboxed script ${extensionURL}: ${err && err.message ? err.message : err}`));
+        });
     } else {
         reject(new Error(`Unsupported protocol for ${extensionURL}`));
     }
